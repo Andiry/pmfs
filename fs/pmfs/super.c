@@ -92,7 +92,7 @@ static inline int pmfs_has_huge_ioremap(struct super_block *sb)
 
 void *pmfs_ioremap(struct super_block *sb, phys_addr_t phys_addr, ssize_t size)
 {
-	void *retval;
+	void __iomem *retval;
 	int protect, hugeioremap;
 
 	if (sb) {
@@ -109,7 +109,8 @@ void *pmfs_ioremap(struct super_block *sb, phys_addr_t phys_addr, ssize_t size)
 	 * restriction depends on STRICT_DEVMEM option. If this option is
 	 * disabled or not available we mark the region only as busy.
 	 */
-	retval = request_mem_region_exclusive(phys_addr, size, "pmfs");
+	retval = (void __iomem *)
+			request_mem_region_exclusive(phys_addr, size, "pmfs");
 	if (!retval)
 		goto fail;
 
@@ -126,12 +127,12 @@ void *pmfs_ioremap(struct super_block *sb, phys_addr_t phys_addr, ssize_t size)
 	}
 
 fail:
-	return retval;
+	return (void __force *)retval;
 }
 
 static inline int pmfs_iounmap(void *virt_addr, ssize_t size, int protected)
 {
-	iounmap(virt_addr);
+	iounmap((void __iomem __force *)virt_addr);
 	return 0;
 }
 
@@ -982,11 +983,12 @@ struct pmfs_blocknode *pmfs_alloc_blocknode(struct super_block *sb)
 
 static struct inode *pmfs_alloc_inode(struct super_block *sb)
 {
-	struct pmfs_inode_vfs *vi = (struct pmfs_inode_vfs *)
-				     kmem_cache_alloc(pmfs_inode_cachep, GFP_NOFS);
+	struct pmfs_inode_info *vi;
 
+	vi = kmem_cache_alloc(pmfs_inode_cachep, GFP_NOFS);
 	if (!vi)
 		return NULL;
+
 	vi->vfs_inode.i_version = 1;
 	return &vi->vfs_inode;
 }
@@ -1005,7 +1007,7 @@ static void pmfs_destroy_inode(struct inode *inode)
 
 static void init_once(void *foo)
 {
-	struct pmfs_inode_vfs *vi = (struct pmfs_inode_vfs *)foo;
+	struct pmfs_inode_info *vi = foo;
 
 	vi->i_dir_start_lookup = 0;
 	INIT_LIST_HEAD(&vi->i_truncated);
@@ -1028,7 +1030,7 @@ static int __init init_blocknode_cache(void)
 static int __init init_inodecache(void)
 {
 	pmfs_inode_cachep = kmem_cache_create("pmfs_inode_cache",
-					       sizeof(struct pmfs_inode_vfs),
+					       sizeof(struct pmfs_inode_info),
 					       0, (SLAB_RECLAIM_ACCOUNT |
 						   SLAB_MEM_SPREAD), init_once);
 	if (pmfs_inode_cachep == NULL)

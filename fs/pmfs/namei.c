@@ -140,7 +140,7 @@ static ino_t pmfs_inode_by_name(struct inode *dir, struct qstr *entry,
 	const u8 *name = entry->name;
 	struct super_block *sb = dir->i_sb;
 	unsigned long block, start;
-	struct pmfs_inode_vfs *si = PMFS_I(dir);
+	struct pmfs_inode_info *si = PMFS_I(dir);
 
 	pi = pmfs_get_inode(sb, dir->i_ino);
 
@@ -282,7 +282,7 @@ static int pmfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 	}
 
 	inode = pmfs_new_inode(trans, dir, mode, &dentry->d_name);
-	if (!IS_ERR(inode))
+	if (IS_ERR(inode))
 		goto out_err;
 	init_special_inode(inode, mode, rdev);
 	inode->i_op = &pmfs_special_inode_operations;
@@ -344,8 +344,6 @@ static int pmfs_symlink(struct inode *dir, struct dentry *dentry,
 
 	err = pmfs_add_nondir(trans, dir, dentry, inode);
 	if (err) {
-		/* free up the allocated block to the symlink inode */
-		pmfs_setsize(inode, 0);
 		pmfs_abort_transaction(sb, trans);
 		goto out;
 	}
