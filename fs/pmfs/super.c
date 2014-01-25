@@ -154,7 +154,7 @@ enum {
 	Opt_num_inodes, Opt_mode, Opt_uid,
 	Opt_gid, Opt_blocksize, Opt_wprotect, Opt_wprotectold,
 	Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_hugemmap, Opt_nohugeioremap, Opt_dbgmask, Opt_err
+	Opt_hugemmap, Opt_nohugeioremap, Opt_dbgmask, Opt_bs, Opt_err
 };
 
 static const match_table_t tokens = {
@@ -174,6 +174,7 @@ static const match_table_t tokens = {
 	{ Opt_hugemmap,	     "hugemmap"		  },
 	{ Opt_nohugeioremap, "nohugeioremap"	  },
 	{ Opt_dbgmask,	     "dbgmask=%u"	  },
+	{ Opt_bs,	     "backing_dev=%s"	  },
 	{ Opt_err,	     NULL		  },
 };
 
@@ -206,6 +207,8 @@ static int pmfs_parse_options(char *options, struct pmfs_sb_info *sbi,
 			       bool remount)
 {
 	char *p, *rest;
+	char *bs_path_name;
+	size_t size;
 	substring_t args[MAX_OPT_ARGS];
 	int option;
 
@@ -324,6 +327,17 @@ static int pmfs_parse_options(char *options, struct pmfs_sb_info *sbi,
 			if (match_int(&args[0], &option))
 				goto bad_val;
 			pmfs_dbgmask = option;
+			break;
+		case Opt_bs:
+			/* get backing dev path name */
+			size = args[0].to - args[0].from;
+			bs_path_name = kzalloc(size + 1, GFP_KERNEL);
+			if (!bs_path_name)
+				break;
+			memcpy(bs_path_name, args[0].from, size);
+			bs_path_name[size] = '\0'; 
+			printk("PMFS backing dev: %s\n", bs_path_name);
+			kfree(bs_path_name);
 			break;
 		default: {
 			goto bad_opt;
