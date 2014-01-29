@@ -334,7 +334,7 @@ static int pmfs_parse_options(char *options, struct pmfs_sb_info *sbi,
 			bs_path_name = kzalloc(size + 1, GFP_KERNEL);
 			if (!bs_path_name)
 				break;
-			pmfs_cache_init(sbi);
+			pmfs_cache_init(sbi, bs_path_name);
 			memcpy(bs_path_name, args[0].from, size);
 			bs_path_name[size] = '\0'; 
 			printk("PMFS backing dev: %s\n", bs_path_name);
