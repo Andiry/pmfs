@@ -625,4 +625,6 @@ int pmfs_search_dirblock(u8 *blk_base, struct inode *dir, struct qstr *child,
 			  struct pmfs_direntry **res_dir,
 			  struct pmfs_direntry **prev_dir);
 
+/* cache.c */
+int pmfs_cache_init(struct pmfs_sb_info *sbi);
 #endif /* __PMFS_H */
