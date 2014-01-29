@@ -335,6 +335,8 @@ static int pmfs_parse_options(char *options, struct pmfs_sb_info *sbi,
 			bs_path_name = kzalloc(size + 1, GFP_KERNEL);
 			if (!bs_path_name)
 				break;
+			memcpy(bs_path_name, args[0].from, size);
+			bs_path_name[size] = '\0';
 			if ((ret = pmfs_cache_init(sbi, bs_path_name)) != 0)
 				pmfs_info("PMFS cache init failed %d\n", ret);
 			kfree(bs_path_name);

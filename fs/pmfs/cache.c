@@ -4,21 +4,12 @@
 
 #include "pmfs.h"
 
-int pmfs_cache_init(struct pmfs_sb_info *sbi, char* backing_dev_path)
+static int pmfs_cache_init_backing_dev(struct pmfs_cache_info *cinfo,
+					char *backing_dev_path)
 {
 	struct block_device *bdev;
-	struct pmfs_cache_info *cinfo = kzalloc(sizeof(struct pmfs_cache_info),
-						GFP_KERNEL);
 	dev_t dev;
 	int ret;
-
-	pmfs_info("Init PMFS cache, backing device %s\n", backing_dev_path);
-
-	if (!cinfo) {
-		pmfs_info("Failed to allocate pmfs cache info struct\n");
-		ret = -ENOMEM;
-		goto fail;
-	}
 
 	bdev = lookup_bdev(backing_dev_path);
 	if (IS_ERR(bdev)) {
@@ -65,7 +56,6 @@ int pmfs_cache_init(struct pmfs_sb_info *sbi, char* backing_dev_path)
 				pmfs_info("Backing store number %d\n",
 					bdev->bd_dev);
 
-				sbi->cache_info = cinfo;
 				return 0;
 
 			} else
@@ -78,8 +68,32 @@ int pmfs_cache_init(struct pmfs_sb_info *sbi, char* backing_dev_path)
 	ret = -EINVAL;
 
 fail:
-	kfree(cinfo);
 	return ret;
+}
+
+int pmfs_cache_init(struct pmfs_sb_info *sbi, char* backing_dev_path)
+{
+	struct pmfs_cache_info *cinfo = kzalloc(sizeof(struct pmfs_cache_info),
+						GFP_KERNEL);
+	int ret;
+
+	if (!cinfo) {
+		pmfs_info("Failed to allocate pmfs cache info struct\n");
+		return -ENOMEM;
+	}
+
+	pmfs_info("Init PMFS cache, backing device %s\n", backing_dev_path);
+	ret = pmfs_cache_init_backing_dev(cinfo, backing_dev_path);
+
+	if (ret != 0) {
+		kfree(cinfo);
+		return ret;
+	}
+
+	pmfs_info("cache enabled\n");
+	sbi->cache_info = cinfo;
+
+	return 0;
 }
 
 void pmfs_cache_exit(struct pmfs_sb_info *sbi)
