@@ -211,6 +211,7 @@ static int pmfs_parse_options(char *options, struct pmfs_sb_info *sbi,
 	size_t size;
 	substring_t args[MAX_OPT_ARGS];
 	int option;
+	int ret;
 
 	if (!options)
 		return 0;
@@ -334,10 +335,8 @@ static int pmfs_parse_options(char *options, struct pmfs_sb_info *sbi,
 			bs_path_name = kzalloc(size + 1, GFP_KERNEL);
 			if (!bs_path_name)
 				break;
-			pmfs_cache_init(sbi, bs_path_name);
-			memcpy(bs_path_name, args[0].from, size);
-			bs_path_name[size] = '\0'; 
-			printk("PMFS backing dev: %s\n", bs_path_name);
+			if ((ret = pmfs_cache_init(sbi, bs_path_name)) != 0)
+				pmfs_info("PMFS cache init failed %d\n", ret);
 			kfree(bs_path_name);
 			break;
 		default: {
@@ -958,6 +957,8 @@ static void pmfs_put_super(struct super_block *sb)
 	}
 	sb->s_fs_info = NULL;
 	pmfs_dbgmask = 0;
+	if (sbi->cache_info)
+		pmfs_cache_exit(sbi);
 	kfree(sbi);
 }
 

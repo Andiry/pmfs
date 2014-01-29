@@ -10,30 +10,37 @@ int pmfs_cache_init(struct pmfs_sb_info *sbi, char* backing_dev_path)
 	struct pmfs_cache_info *cinfo = kzalloc(sizeof(struct pmfs_cache_info),
 						GFP_KERNEL);
 	dev_t dev;
+	int ret;
+
+	pmfs_info("Init PMFS cache, backing device %s\n", backing_dev_path);
 
 	if (!cinfo) {
 		pmfs_info("Failed to allocate pmfs cache info struct\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail;
 	}
 
-	sbi->cache_info = cinfo;
 	bdev = lookup_bdev(backing_dev_path);
 	if (IS_ERR(bdev)) {
 		pmfs_info("Backing device not found\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	dev = bdev->bd_dev;
 	if (!bdev->bd_inode) {
 		pmfs_info("Backing device inode is NULL\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	if (dev) {
 		bdev = blkdev_get_by_dev(dev, FMODE_READ |
 					FMODE_WRITE | FMODE_EXCL, cinfo);
-		if(IS_ERR(bdev))
+		if(IS_ERR(bdev)) {
 			return -EINVAL;
+			goto fail;
+		}
 
 		pmfs_info("Opened handle to the block device %p\n", bdev);
 		cinfo->bs_bdev = bdev;
@@ -58,6 +65,7 @@ int pmfs_cache_init(struct pmfs_sb_info *sbi, char* backing_dev_path)
 				pmfs_info("Backing store number %d\n",
 					bdev->bd_dev);
 
+				sbi->cache_info = cinfo;
 				return 0;
 
 			} else
@@ -67,5 +75,21 @@ int pmfs_cache_init(struct pmfs_sb_info *sbi, char* backing_dev_path)
 			pmfs_info("Backing store bdisk is null\n");
 	}
 
-	return 0;
+	ret = -EINVAL;
+
+fail:
+	kfree(cinfo);
+	return ret;
+}
+
+void pmfs_cache_exit(struct pmfs_sb_info *sbi)
+{
+	struct pmfs_cache_info *cinfo = sbi->cache_info;
+
+	pmfs_info("exiting cache\n");
+	if (cinfo->bs_bdev)
+		blkdev_put(cinfo->bs_bdev, FMODE_READ |
+					FMODE_WRITE | FMODE_EXCL);
+
+	kfree(cinfo);
 }

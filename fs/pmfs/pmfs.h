@@ -635,4 +635,5 @@ struct pmfs_cache_info {
 };
 
 int pmfs_cache_init(struct pmfs_sb_info *sbi, char* backing_dev_path);
+void pmfs_cache_exit(struct pmfs_sb_info *sbi);
 #endif /* __PMFS_H */
