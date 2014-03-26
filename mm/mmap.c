@@ -1349,11 +1349,10 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 	return addr;
 }
 
-unsigned long bankshot2_do_mmap_pgoff(struct bankshot2_device *bs2_dev,
-			struct file *file, unsigned long addr,
-			unsigned long len, unsigned long prot,
-			unsigned long flags, unsigned long pgoff,
-			unsigned long *populate)
+unsigned long bankshot2_do_mmap_pgoff(void *bs2_dev, struct file *file,
+			unsigned long addr, unsigned long len,
+			unsigned long prot, unsigned long flags,
+			unsigned long pgoff, unsigned long *populate)
 {
 	struct mm_struct * mm = current->mm;
 	struct inode *inode;
@@ -1553,8 +1552,7 @@ out:
 	return retval;
 }
 
-unsigned long bankshot2_mmap(struct bankshot2_device *bs2_dev,
-		unsigned long addr,
+unsigned long bankshot2_mmap(void *bs2_dev, unsigned long addr,
 		unsigned long len, unsigned long prot, unsigned long flags,
 		unsigned long fd, unsigned long pgoff)
 {
@@ -1843,9 +1841,9 @@ unacct_error:
 	return error;
 }
 
-unsigned long bankshot2_mmap_region(struct bankshot2_device *bs2_dev,
-		struct file *file, unsigned long addr,
-		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff)
+unsigned long bankshot2_mmap_region(void *bs2_dev, struct file *file,
+		unsigned long addr, unsigned long len,
+		vm_flags_t vm_flags, unsigned long pgoff)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma, *prev;

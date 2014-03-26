@@ -370,7 +370,7 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 	return ret;
 }
 
-unsigned long bankshot2_vm_mmap_pgoff(struct bankshot2_device *bs2_dev,
+unsigned long bankshot2_vm_mmap_pgoff(void *bs2_dev,
 	struct file *file, unsigned long addr,
 	unsigned long len, unsigned long prot,
 	unsigned long flag, unsigned long pgoff)
