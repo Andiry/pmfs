@@ -370,6 +370,27 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 	return ret;
 }
 
+unsigned long bankshot2_vm_mmap_pgoff(struct bankshot2_device *bs2_dev,
+	struct file *file, unsigned long addr,
+	unsigned long len, unsigned long prot,
+	unsigned long flag, unsigned long pgoff)
+{
+	unsigned long ret;
+	struct mm_struct *mm = current->mm;
+	unsigned long populate;
+
+	ret = security_mmap_file(file, prot, flag);
+	if (!ret) {
+		down_write(&mm->mmap_sem);
+		ret = bankshot2_do_mmap_pgoff(bs2_dev, file, addr, len, prot,
+				flag, pgoff, &populate);
+		up_write(&mm->mmap_sem);
+		if (populate)
+			mm_populate(ret, populate);
+	}
+	return ret;
+}
+
 unsigned long vm_mmap(struct file *file, unsigned long addr,
 	unsigned long len, unsigned long prot,
 	unsigned long flag, unsigned long offset)

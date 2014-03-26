@@ -1349,6 +1349,160 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 	return addr;
 }
 
+unsigned long bankshot2_do_mmap_pgoff(struct bankshot2_device *bs2_dev,
+			struct file *file, unsigned long addr,
+			unsigned long len, unsigned long prot,
+			unsigned long flags, unsigned long pgoff,
+			unsigned long *populate)
+{
+	struct mm_struct * mm = current->mm;
+	struct inode *inode;
+	vm_flags_t vm_flags;
+
+	*populate = 0;
+
+	/*
+	 * Does the application expect PROT_READ to imply PROT_EXEC?
+	 *
+	 * (the exception is when the underlying filesystem is noexec
+	 *  mounted, in which case we dont add PROT_EXEC.)
+	 */
+	if ((prot & PROT_READ) && (current->personality & READ_IMPLIES_EXEC))
+		if (!(file && (file->f_path.mnt->mnt_flags & MNT_NOEXEC)))
+			prot |= PROT_EXEC;
+
+	if (!len)
+		return -EINVAL;
+
+	if (!(flags & MAP_FIXED))
+		addr = round_hint_to_min(addr);
+
+	/* Careful about overflows.. */
+	len = PAGE_ALIGN(len);
+	if (!len)
+		return -ENOMEM;
+
+	/* offset overflow? */
+	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+               return -EOVERFLOW;
+
+	/* Too many mappings? */
+	if (mm->map_count > sysctl_max_map_count)
+		return -ENOMEM;
+
+	/* Obtain the address to map to. we verify (or select) it and ensure
+	 * that it represents a valid section of the address space.
+	 */
+	addr = get_unmapped_area(file, addr, len, pgoff, flags);
+	if (addr & ~PAGE_MASK)
+		return addr;
+
+	/* Do simple checking here so the lower-level routines won't have
+	 * to. we assume access permissions have been handled by the open
+	 * of the memory object, so we don't do any here.
+	 */
+	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
+			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+
+	if (flags & MAP_LOCKED)
+		if (!can_do_mlock())
+			return -EPERM;
+
+	/* mlock MCL_FUTURE? */
+	if (vm_flags & VM_LOCKED) {
+		unsigned long locked, lock_limit;
+		locked = len >> PAGE_SHIFT;
+		locked += mm->locked_vm;
+		lock_limit = rlimit(RLIMIT_MEMLOCK);
+		lock_limit >>= PAGE_SHIFT;
+		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+			return -EAGAIN;
+	}
+
+	inode = file ? file_inode(file) : NULL;
+
+	if (file) {
+		switch (flags & MAP_TYPE) {
+		case MAP_SHARED:
+			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
+				return -EACCES;
+
+			/*
+			 * Make sure we don't allow writing to an append-only
+			 * file..
+			 */
+			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
+				return -EACCES;
+
+			/*
+			 * Make sure there are no mandatory locks on the file.
+			 */
+			if (locks_verify_locked(inode))
+				return -EAGAIN;
+
+			vm_flags |= VM_SHARED | VM_MAYSHARE;
+			if (!(file->f_mode & FMODE_WRITE))
+				vm_flags &= ~(VM_MAYWRITE | VM_SHARED);
+
+			/* fall through */
+		case MAP_PRIVATE:
+			if (!(file->f_mode & FMODE_READ))
+				return -EACCES;
+			if (file->f_path.mnt->mnt_flags & MNT_NOEXEC) {
+				if (vm_flags & VM_EXEC)
+					return -EPERM;
+				vm_flags &= ~VM_MAYEXEC;
+			}
+
+			if (!file->f_op || !file->f_op->mmap)
+				return -ENODEV;
+			break;
+
+		default:
+			return -EINVAL;
+		}
+	} else {
+		switch (flags & MAP_TYPE) {
+		case MAP_SHARED:
+			/*
+			 * Ignore pgoff.
+			 */
+			pgoff = 0;
+			vm_flags |= VM_SHARED | VM_MAYSHARE;
+			break;
+		case MAP_PRIVATE:
+			/*
+			 * Set pgoff according to addr for anon_vma.
+			 */
+			pgoff = addr >> PAGE_SHIFT;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	/*
+	 * Set 'VM_NORESERVE' if we should not account for the
+	 * memory use of this mapping.
+	 */
+	if (flags & MAP_NORESERVE) {
+		/* We honor MAP_NORESERVE if allowed to overcommit */
+		if (sysctl_overcommit_memory != OVERCOMMIT_NEVER)
+			vm_flags |= VM_NORESERVE;
+
+		/* hugetlb applies strict overcommit unless MAP_NORESERVE */
+		if (file && is_file_hugepages(file))
+			vm_flags |= VM_NORESERVE;
+	}
+
+	addr = bankshot2_mmap_region(bs2_dev, file, addr, len, vm_flags, pgoff);
+	if (!IS_ERR_VALUE(addr) &&
+	    ((vm_flags & VM_LOCKED) ||
+	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
+		*populate = len;
+	return addr;
+}
+
 SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags,
 		unsigned long, fd, unsigned long, pgoff)
@@ -1398,6 +1552,60 @@ out_fput:
 out:
 	return retval;
 }
+
+unsigned long bankshot2_mmap(struct bankshot2_device *bs2_dev,
+		unsigned long addr,
+		unsigned long len, unsigned long prot, unsigned long flags,
+		unsigned long fd, unsigned long pgoff)
+{
+	struct file *file = NULL;
+	unsigned long retval = -EBADF;
+
+	if (!(flags & MAP_ANONYMOUS)) {
+		audit_mmap_fd(fd, flags);
+		file = fget(fd);
+		if (!file)
+			goto out;
+		if (is_file_hugepages(file))
+			len = ALIGN(len, huge_page_size(hstate_file(file)));
+		retval = -EINVAL;
+		if (unlikely(flags & MAP_HUGETLB && !is_file_hugepages(file)))
+			goto out_fput;
+	} else if (flags & MAP_HUGETLB) {
+		struct user_struct *user = NULL;
+		struct hstate *hs;
+
+		hs = hstate_sizelog((flags >> MAP_HUGE_SHIFT) & SHM_HUGE_MASK);
+		if (!hs)
+			return -EINVAL;
+
+		len = ALIGN(len, huge_page_size(hs));
+		/*
+		 * VM_NORESERVE is used because the reservations will be
+		 * taken when vm_ops->mmap() is called
+		 * A dummy user value is used because we are not locking
+		 * memory so no accounting is necessary
+		 */
+		file = hugetlb_file_setup(HUGETLB_ANON_FILE, len,
+				VM_NORESERVE,
+				&user, HUGETLB_ANONHUGE_INODE,
+				(flags >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK);
+		if (IS_ERR(file))
+			return PTR_ERR(file);
+	}
+
+	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
+
+	retval = bankshot2_vm_mmap_pgoff(bs2_dev, file, addr, len, prot,
+					flags, pgoff);
+out_fput:
+	if (file)
+		fput(file);
+out:
+	return retval;
+}
+
+EXPORT_SYMBOL(bankshot2_mmap);
 
 #ifdef __ARCH_WANT_SYS_OLD_MMAP
 struct mmap_arg_struct {
@@ -1472,6 +1680,171 @@ static inline int accountable_mapping(struct file *file, vm_flags_t vm_flags)
 }
 
 unsigned long mmap_region(struct file *file, unsigned long addr,
+		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff)
+{
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma, *prev;
+	int correct_wcount = 0;
+	int error;
+	struct rb_node **rb_link, *rb_parent;
+	unsigned long charged = 0;
+	struct inode *inode =  file ? file_inode(file) : NULL;
+
+	/* Check against address space limit. */
+	if (!may_expand_vm(mm, len >> PAGE_SHIFT)) {
+		unsigned long nr_pages;
+
+		/*
+		 * MAP_FIXED may remove pages of mappings that intersects with
+		 * requested mapping. Account for the pages it would unmap.
+		 */
+		if (!(vm_flags & MAP_FIXED))
+			return -ENOMEM;
+
+		nr_pages = count_vma_pages_range(mm, addr, addr + len);
+
+		if (!may_expand_vm(mm, (len >> PAGE_SHIFT) - nr_pages))
+			return -ENOMEM;
+	}
+
+	/* Clear old maps */
+	error = -ENOMEM;
+munmap_back:
+	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
+		if (do_munmap(mm, addr, len))
+			return -ENOMEM;
+		goto munmap_back;
+	}
+
+	/*
+	 * Private writable mapping: check memory availability
+	 */
+	if (accountable_mapping(file, vm_flags)) {
+		charged = len >> PAGE_SHIFT;
+		if (security_vm_enough_memory_mm(mm, charged))
+			return -ENOMEM;
+		vm_flags |= VM_ACCOUNT;
+	}
+
+	/*
+	 * Can we just expand an old mapping?
+	 */
+	vma = vma_merge(mm, prev, addr, addr + len, vm_flags, NULL, file, pgoff, NULL);
+	if (vma)
+		goto out;
+
+	/*
+	 * Determine the object being mapped and call the appropriate
+	 * specific mapper. the address has already been validated, but
+	 * not unmapped, but the maps are removed from the list.
+	 */
+	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+	if (!vma) {
+		error = -ENOMEM;
+		goto unacct_error;
+	}
+
+	vma->vm_mm = mm;
+	vma->vm_start = addr;
+	vma->vm_end = addr + len;
+	vma->vm_flags = vm_flags;
+	vma->vm_page_prot = vm_get_page_prot(vm_flags);
+	vma->vm_pgoff = pgoff;
+	INIT_LIST_HEAD(&vma->anon_vma_chain);
+
+	error = -EINVAL;	/* when rejecting VM_GROWSDOWN|VM_GROWSUP */
+
+	if (file) {
+		if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP))
+			goto free_vma;
+		if (vm_flags & VM_DENYWRITE) {
+			error = deny_write_access(file);
+			if (error)
+				goto free_vma;
+			correct_wcount = 1;
+		}
+		vma->vm_file = get_file(file);
+		error = file->f_op->mmap(file, vma);
+		if (error)
+			goto unmap_and_free_vma;
+
+		/* Can addr have changed??
+		 *
+		 * Answer: Yes, several device drivers can do it in their
+		 *         f_op->mmap method. -DaveM
+		 * Bug: If addr is changed, prev, rb_link, rb_parent should
+		 *      be updated for vma_link()
+		 */
+		WARN_ON_ONCE(addr != vma->vm_start);
+
+		addr = vma->vm_start;
+		pgoff = vma->vm_pgoff;
+		vm_flags = vma->vm_flags;
+	} else if (vm_flags & VM_SHARED) {
+		if (unlikely(vm_flags & (VM_GROWSDOWN|VM_GROWSUP)))
+			goto free_vma;
+		error = shmem_zero_setup(vma);
+		if (error)
+			goto free_vma;
+	}
+
+	if (vma_wants_writenotify(vma)) {
+		pgprot_t pprot = vma->vm_page_prot;
+
+		/* Can vma->vm_page_prot have changed??
+		 *
+		 * Answer: Yes, drivers may have changed it in their
+		 *         f_op->mmap method.
+		 *
+		 * Ensures that vmas marked as uncached stay that way.
+		 */
+		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
+		if (pgprot_val(pprot) == pgprot_val(pgprot_noncached(pprot)))
+			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	}
+
+	vma_link(mm, vma, prev, rb_link, rb_parent);
+	file = vma->vm_file;
+
+	/* Once vma denies write, undo our temporary denial count */
+	if (correct_wcount)
+		atomic_inc(&inode->i_writecount);
+out:
+	perf_event_mmap(vma);
+
+	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
+	if (vm_flags & VM_LOCKED) {
+		if (!((vm_flags & VM_SPECIAL) || is_vm_hugetlb_page(vma) ||
+					vma == get_gate_vma(current->mm)))
+			mm->locked_vm += (len >> PAGE_SHIFT);
+		else
+			vma->vm_flags &= ~VM_LOCKED;
+	}
+
+	if (file)
+		uprobe_mmap(vma);
+
+	return addr;
+
+unmap_and_free_vma:
+	if (correct_wcount)
+		atomic_inc(&inode->i_writecount);
+	vma->vm_file = NULL;
+	fput(file);
+
+	/* Undo any partial mapping done by a device driver. */
+	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
+	charged = 0;
+free_vma:
+	kmem_cache_free(vm_area_cachep, vma);
+unacct_error:
+	if (charged)
+		vm_unacct_memory(charged);
+	return error;
+}
+
+unsigned long bankshot2_mmap_region(struct bankshot2_device *bs2_dev,
+		struct file *file, unsigned long addr,
 		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff)
 {
 	struct mm_struct *mm = current->mm;
