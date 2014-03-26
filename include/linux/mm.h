@@ -18,6 +18,8 @@
 #include <linux/bit_spinlock.h>
 #include <linux/shrinker.h>
 
+#include "bankshot2.h"
+
 struct mempolicy;
 struct anon_vma;
 struct anon_vma_chain;

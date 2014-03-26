@@ -1918,6 +1918,8 @@ munmap_back:
 	error = -EINVAL;	/* when rejecting VM_GROWSDOWN|VM_GROWSUP */
 
 	if (file) {
+		struct bankshot2_device_partial *bs2_devp
+			= (struct bankshot2_device_partial *)bs2_dev;
 		if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP))
 			goto free_vma;
 		if (vm_flags & VM_DENYWRITE) {
@@ -1927,7 +1929,8 @@ munmap_back:
 			correct_wcount = 1;
 		}
 		vma->vm_file = get_file(file);
-		error = file->f_op->mmap(file, vma);
+//		error = file->f_op->mmap(file, vma);
+		error = bs2_devp->bankshot2_xip_file_mmap(file, vma);
 		if (error)
 			goto unmap_and_free_vma;
 
