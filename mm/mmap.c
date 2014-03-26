@@ -1930,7 +1930,7 @@ munmap_back:
 		}
 		vma->vm_file = get_file(file);
 //		error = file->f_op->mmap(file, vma);
-		error = bs2_devp->bankshot2_xip_file_mmap(file, vma);
+		error = bs2_devp->mmap(file, vma);
 		if (error)
 			goto unmap_and_free_vma;
 
