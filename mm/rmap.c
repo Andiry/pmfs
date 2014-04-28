@@ -1177,6 +1177,7 @@ out:
 	if (!anon)
 		mem_cgroup_end_update_page_stat(page, &locked, &flags);
 }
+EXPORT_SYMBOL_GPL(page_remove_rmap);
 
 /*
  * Subfunctions of try_to_unmap: try_to_unmap_one called
@@ -1638,6 +1639,7 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
 		ret = SWAP_SUCCESS;
 	return ret;
 }
+EXPORT_SYMBOL_GPL(try_to_unmap);
 
 /**
  * try_to_munlock - try to munlock a page

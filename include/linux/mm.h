@@ -1578,6 +1578,8 @@ extern unsigned long bankshot2_mmap(void *bs2_dev, unsigned long addr,
 		unsigned long len, unsigned long prot, unsigned long flags,
 		unsigned long fd, unsigned long pgoff);
 
+extern void bankshot2_unmap(struct address_space *mapping, struct page *page, unsigned long pgoff);
+
 struct vm_unmapped_area_info {
 #define VM_UNMAPPED_AREA_TOPDOWN 1
 	unsigned long flags;
