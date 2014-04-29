@@ -161,9 +161,9 @@ void bankshot2_unmap(struct address_space *mapping, struct page *page, unsigned 
 	struct mm_struct *mm;
 	unsigned long address;
 //	struct page *page;
-	pte_t *pte;
-	pte_t pteval;
-	spinlock_t *ptl;
+//	pte_t *pte;
+//	pte_t pteval;
+//	spinlock_t *ptl;
 
 	printk(KERN_ERR "%s, mapping %p, pgoff %lu\n", __func__, mapping, pgoff);
 //	page = xip_sparse_page();
@@ -171,28 +171,33 @@ void bankshot2_unmap(struct address_space *mapping, struct page *page, unsigned 
 	if (!page)
 		return;
 
-	mutex_lock(&mapping->i_mmap_mutex);
+//	mutex_lock(&mapping->i_mmap_mutex);
 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
 		mm = vma->vm_mm;
 		address = vma->vm_start +
 			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+
+		vm_munmap_page(mm, address, PAGE_SIZE);
+
+#if 0
 		pte = page_check_address(page, mm, address, &ptl, 1);
-		printk(KERN_ERR "%s: vma %p, pte %p\n", __func__, vma, pte);
+		printk(KERN_ERR "%s: vma %p, pte %p, vm_start %lx, vm_end %lx, vm_pgoff %lx, address %lx\n", __func__, vma, pte, vma->vm_start, vma->vm_end, vma->vm_pgoff, address);
 		if (pte) {
 			/* Nuke the page table entry. */
 			flush_cache_page(vma, address, pte_pfn(*pte));
 			pteval = ptep_clear_flush(vma, address, pte);
 			page_remove_rmap(page);
 			dec_mm_counter(mm, MM_FILEPAGES);
-			BUG_ON(pte_dirty(pteval));
+//			BUG_ON(pte_dirty(pteval));
 			pte_unmap_unlock(pte, ptl);
 			/* must invalidate_page _before_ freeing the page */
 			mmu_notifier_invalidate_page(mm, address);
 			page_cache_release(page);
 		}
+#endif
 	}
-	mutex_unlock(&mapping->i_mmap_mutex);
+//	mutex_unlock(&mapping->i_mmap_mutex);
 }
 EXPORT_SYMBOL_GPL(bankshot2_unmap);
 
