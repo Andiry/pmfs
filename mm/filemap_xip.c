@@ -177,6 +177,7 @@ void bankshot2_unmap(struct address_space *mapping, struct page *page, unsigned 
 		address = vma->vm_start +
 			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+//		printk(KERN_ERR "%s: vma %p, vm_start %lx, vm_end %lx, vm_pgoff %lx, address %lx\n", __func__, vma, vma->vm_start, vma->vm_end, vma->vm_pgoff, address);
 
 		vm_munmap_page(mm, address, PAGE_SIZE);
 

@@ -59,6 +59,12 @@ void vma_interval_tree_insert_after(struct vm_area_struct *node,
 			    &vma_interval_tree_augment);
 }
 
+EXPORT_SYMBOL_GPL(vma_interval_tree_insert);
+EXPORT_SYMBOL_GPL(vma_interval_tree_insert_after);
+EXPORT_SYMBOL_GPL(vma_interval_tree_remove);
+EXPORT_SYMBOL_GPL(vma_interval_tree_iter_first);
+EXPORT_SYMBOL_GPL(vma_interval_tree_iter_next);
+
 static inline unsigned long avc_start_pgoff(struct anon_vma_chain *avc)
 {
 	return vma_start_pgoff(avc->vma);
