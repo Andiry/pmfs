@@ -1549,11 +1549,13 @@ extern int do_munmap(struct mm_struct *, unsigned long, size_t);
 
 extern unsigned long bankshot2_mmap_region(void *bs2_dev,
 	struct file *file, unsigned long addr,
-	unsigned long len, vm_flags_t vm_flags, unsigned long pgoff);
+	unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
+	struct vm_area_struct **return_vma);
 extern unsigned long bankshot2_do_mmap_pgoff(void *bs2_dev, 
 	struct file *file, unsigned long addr,
 	unsigned long len, unsigned long prot, unsigned long flags,
-	unsigned long pgoff, unsigned long *populate);
+	unsigned long pgoff, unsigned long *populate,
+	struct vm_area_struct **return_vma);
 
 #ifdef CONFIG_MMU
 extern int __mm_populate(unsigned long addr, unsigned long len,
@@ -1577,9 +1579,10 @@ extern unsigned long vm_mmap(struct file *, unsigned long,
 
 extern unsigned long bankshot2_mmap(void *bs2_dev, unsigned long addr,
 		unsigned long len, unsigned long prot, unsigned long flags,
-		unsigned long fd, unsigned long pgoff);
+		unsigned long fd, unsigned long pgoff,
+		struct vm_area_struct **return_vma);
 
-extern void bankshot2_unmap(struct address_space *mapping, struct page *page, unsigned long pgoff);
+//extern void bankshot2_unmap(struct address_space *mapping, struct page *page, unsigned long pgoff);
 
 struct vm_unmapped_area_info {
 #define VM_UNMAPPED_AREA_TOPDOWN 1

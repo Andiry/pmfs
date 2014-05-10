@@ -355,7 +355,8 @@ extern unsigned long vm_mmap_pgoff(struct file *, unsigned long,
 extern unsigned long bankshot2_vm_mmap_pgoff(void *bs2_dev,
 	struct file *file, unsigned long addr,
 	unsigned long len, unsigned long prot,
-	unsigned long flag, unsigned long pgoff);
+	unsigned long flag, unsigned long pgoff,
+	struct vm_area_struct **return_vma);
 
 extern void set_pageblock_order(void);
 unsigned long reclaim_clean_pages_from_list(struct zone *zone,

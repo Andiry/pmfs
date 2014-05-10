@@ -1352,7 +1352,8 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 unsigned long bankshot2_do_mmap_pgoff(void *bs2_dev, struct file *file,
 			unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
-			unsigned long pgoff, unsigned long *populate)
+			unsigned long pgoff, unsigned long *populate,
+			struct vm_area_struct **return_vma)
 {
 	struct mm_struct * mm = current->mm;
 	struct inode *inode;
@@ -1494,7 +1495,8 @@ unsigned long bankshot2_do_mmap_pgoff(void *bs2_dev, struct file *file,
 			vm_flags |= VM_NORESERVE;
 	}
 
-	addr = bankshot2_mmap_region(bs2_dev, file, addr, len, vm_flags, pgoff);
+	addr = bankshot2_mmap_region(bs2_dev, file, addr, len, vm_flags, pgoff,
+					return_vma);
 	if (!IS_ERR_VALUE(addr) &&
 	    ((vm_flags & VM_LOCKED) ||
 	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
@@ -1554,7 +1556,8 @@ out:
 
 unsigned long bankshot2_mmap(void *bs2_dev, unsigned long addr,
 		unsigned long len, unsigned long prot, unsigned long flags,
-		unsigned long fd, unsigned long pgoff)
+		unsigned long fd, unsigned long pgoff,
+		struct vm_area_struct **return_vma)
 {
 	struct file *file = NULL;
 	unsigned long retval = -EBADF;
@@ -1595,7 +1598,7 @@ unsigned long bankshot2_mmap(void *bs2_dev, unsigned long addr,
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 
 	retval = bankshot2_vm_mmap_pgoff(bs2_dev, file, addr, len, prot,
-					flags, pgoff);
+					flags, pgoff, return_vma);
 out_fput:
 	if (file)
 		fput(file);
@@ -1843,7 +1846,8 @@ unacct_error:
 
 unsigned long bankshot2_mmap_region(void *bs2_dev, struct file *file,
 		unsigned long addr, unsigned long len,
-		vm_flags_t vm_flags, unsigned long pgoff)
+		vm_flags_t vm_flags, unsigned long pgoff,
+		struct vm_area_struct **return_vma)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma, *prev;
@@ -1990,6 +1994,7 @@ out:
 	if (file)
 		uprobe_mmap(vma);
 
+	*return_vma = vma;
 	return addr;
 
 unmap_and_free_vma:

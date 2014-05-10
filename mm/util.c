@@ -373,7 +373,8 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 unsigned long bankshot2_vm_mmap_pgoff(void *bs2_dev,
 	struct file *file, unsigned long addr,
 	unsigned long len, unsigned long prot,
-	unsigned long flag, unsigned long pgoff)
+	unsigned long flag, unsigned long pgoff,
+	struct vm_area_struct **return_vma)
 {
 	unsigned long ret;
 	struct mm_struct *mm = current->mm;
@@ -383,7 +384,7 @@ unsigned long bankshot2_vm_mmap_pgoff(void *bs2_dev,
 	if (!ret) {
 		down_write(&mm->mmap_sem);
 		ret = bankshot2_do_mmap_pgoff(bs2_dev, file, addr, len, prot,
-				flag, pgoff, &populate);
+				flag, pgoff, &populate, return_vma);
 		up_write(&mm->mmap_sem);
 		if (populate)
 			mm_populate(ret, populate);

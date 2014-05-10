@@ -155,6 +155,7 @@ xip_file_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
 }
 EXPORT_SYMBOL_GPL(xip_file_read);
 
+#if 0
 void bankshot2_unmap(struct address_space *mapping, struct page *page, unsigned long pgoff)
 {
 	struct vm_area_struct *vma;
@@ -201,6 +202,7 @@ void bankshot2_unmap(struct address_space *mapping, struct page *page, unsigned 
 //	mutex_unlock(&mapping->i_mmap_mutex);
 }
 EXPORT_SYMBOL_GPL(bankshot2_unmap);
+#endif
 
 /*
  * __xip_unmap is invoked from xip_unmap and
