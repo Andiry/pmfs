@@ -1556,6 +1556,10 @@ extern unsigned long bankshot2_do_mmap_pgoff(void *bs2_dev,
 	unsigned long len, unsigned long prot, unsigned long flags,
 	unsigned long pgoff, unsigned long *populate,
 	struct vm_area_struct **return_vma);
+extern long bankshot2_get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+		      unsigned long start, unsigned long nr_pages,
+		      unsigned int foll_flags, struct page **pages,
+		      struct vm_area_struct **vmas, int *nonblocking);
 
 #ifdef CONFIG_MMU
 extern int __mm_populate(unsigned long addr, unsigned long len,
@@ -1582,6 +1586,8 @@ extern unsigned long bankshot2_mmap(void *bs2_dev, unsigned long addr,
 		unsigned long fd, unsigned long pgoff,
 		struct vm_area_struct **return_vma);
 
+extern int bankshot2_mm_populate(unsigned long addr, unsigned long len,
+			 int ignore_errors);
 //extern void bankshot2_unmap(struct address_space *mapping, struct page *page, unsigned long pgoff);
 
 struct vm_unmapped_area_info {

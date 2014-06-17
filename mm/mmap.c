@@ -1501,6 +1501,7 @@ unsigned long bankshot2_do_mmap_pgoff(void *bs2_dev, struct file *file,
 	    ((vm_flags & VM_LOCKED) ||
 	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
 		*populate = len;
+//	printk("%s: populate %lu, vma %p\n", __func__, *populate, *return_vma);
 	return addr;
 }
 

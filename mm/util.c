@@ -387,7 +387,7 @@ unsigned long bankshot2_vm_mmap_pgoff(void *bs2_dev,
 				flag, pgoff, &populate, return_vma);
 		up_write(&mm->mmap_sem);
 		if (populate)
-			mm_populate(ret, populate);
+			bankshot2_mm_populate(ret, populate, 1);
 	}
 	return ret;
 }
