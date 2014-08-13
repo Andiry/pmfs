@@ -1947,8 +1947,8 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 
 				cond_resched();
 			}
-			if (IS_ERR(page))
-				return i ? i : PTR_ERR(page);
+//			if (IS_ERR(page))
+//				return i ? i : PTR_ERR(page);
 			if (pages) {
 				pages[i] = page;
 
