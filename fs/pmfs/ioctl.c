@@ -18,6 +18,12 @@
 #include <linux/mount.h>
 #include "pmfs.h"
 
+struct sync_range
+{
+	off_t	offset;
+	size_t	length;
+};
+
 long pmfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
@@ -119,6 +125,12 @@ flags_out:
 setversion_out:
 		mnt_drop_write_file(filp);
 		return ret;
+	}
+	case FS_PMFS_FSYNC: {
+		struct sync_range packet;
+		copy_from_user(&packet, (void *)arg, sizeof(struct sync_range));
+		pmfs_fsync(filp, packet.offset, packet.offset + packet.length, 1);
+		return 0;
 	}
 	default:
 		return -ENOTTY;

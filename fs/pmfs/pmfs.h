@@ -590,6 +590,7 @@ extern const struct file_operations pmfs_dir_operations;
 /* file.c */
 extern const struct inode_operations pmfs_file_inode_operations;
 extern const struct file_operations pmfs_xip_file_operations;
+int pmfs_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 
 /* inode.c */
 extern const struct address_space_operations pmfs_aops_xip;

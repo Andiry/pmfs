@@ -164,6 +164,9 @@ struct inodes_stat_t {
 #define FS_IOC32_GETVERSION		_IOR('v', 1, int)
 #define FS_IOC32_SETVERSION		_IOW('v', 2, int)
 
+/* PMFS fsync */
+#define FS_PMFS_FSYNC			_IOWR('p', 2, long)
+
 /*
  * Inode flags (FS_IOC_GETFLAGS / FS_IOC_SETFLAGS)
  */

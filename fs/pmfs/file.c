@@ -183,7 +183,7 @@ static loff_t pmfs_llseek(struct file *file, loff_t offset, int origin)
  * TODO: Check if we can avoid calling pmfs_flush_buffer() for fsync. We use
  * movnti to write data to files, so we may want to avoid doing unnecessary
  * pmfs_flush_buffer() on fsync() */
-static int pmfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+int pmfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	/* Sync from start to end[inclusive] */
 	struct address_space *mapping = file->f_mapping;
@@ -229,10 +229,10 @@ static int pmfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		if (block) {
 			xip_mem = pmfs_get_block(inode->i_sb, block);
 			/* flush the range */
-			pmfs_flush_buffer(xip_mem+offset, nr_flush_bytes, 0);
+			pmfs_flush_buffer(xip_mem + offset, nr_flush_bytes, 0);
 		} else {
 			/* sparse files could have such holes */
-			pmfs_dbg("[%s:%d] : start(%llx), end(%llx),"
+			pmfs_dbg_verbose("[%s:%d] : start(%llx), end(%llx),"
 			" pgoff(%lx)\n", __func__, __LINE__, start, end, pgoff);
 			break;
 		}
