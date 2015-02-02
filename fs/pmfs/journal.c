@@ -492,6 +492,7 @@ pmfs_transaction_t *pmfs_new_transaction(struct super_block *sb,
 	pmfs_transaction_t *trans;
 	uint32_t head, tail, req_size, avail_size;
 	uint64_t base;
+	timing_t log_time;
 #if 0
 	trans = pmfs_current_transaction();
 
@@ -501,6 +502,8 @@ pmfs_transaction_t *pmfs_new_transaction(struct super_block *sb,
 	}
 #endif
 	/* If it is an undo log, need one more log-entry for commit record */
+	PMFS_START_TIMING(logging_t, log_time);
+
 	if (!sbi->redo_log)
 		max_log_entries++;
 
@@ -568,6 +571,7 @@ again:
 
 	trans->parent = (pmfs_transaction_t *)current->journal_info;
 	current->journal_info = trans;
+	PMFS_END_TIMING(logging_t, log_time);
 	return trans;
 journal_full:
 	mutex_unlock(&sbi->journal_mutex);

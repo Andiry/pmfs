@@ -28,10 +28,13 @@ ssize_t pmfs_xip_file_read(struct file *filp, char __user *buf,
 			    size_t len, loff_t *ppos)
 {
 	ssize_t res;
+	timing_t xip_read_time;
 
+	PMFS_START_TIMING(xip_read_t, xip_read_time);
 	rcu_read_lock();
 	res = xip_file_read(filp, buf, len, ppos);
 	rcu_read_unlock();
+	PMFS_END_TIMING(xip_read_t, xip_read_time);
 	return res;
 }
 
@@ -210,6 +213,9 @@ ssize_t pmfs_xip_file_write(struct file *filp, const char __user *buf,
 	size_t count, offset, eblk_offset, ret;
 	unsigned long start_blk, end_blk, num_blocks, max_logentries;
 	bool same_block;
+	timing_t xip_write_time, xip_write_fast_time;
+
+	PMFS_START_TIMING(xip_write_t, xip_write_time);
 
 	sb_start_write(inode->i_sb);
 	mutex_lock(&inode->i_mutex);
@@ -243,8 +249,10 @@ ssize_t pmfs_xip_file_write(struct file *filp, const char __user *buf,
 	same_block = (((count + offset - 1) >>
 			pmfs_inode_blk_shift(pi)) == 0) ? 1 : 0;
 	if (block && same_block) {
+		PMFS_START_TIMING(xip_write_fast_t, xip_write_fast_time);
 		ret = pmfs_file_write_fast(sb, inode, pi, buf, count, pos,
 			ppos, block);
+		PMFS_END_TIMING(xip_write_fast_t, xip_write_fast_time);
 		goto out_backing;
 	}
 	max_logentries = num_blocks / MAX_PTRS_PER_LENTRY + 2;
@@ -298,6 +306,7 @@ out_backing:
 out:
 	mutex_unlock(&inode->i_mutex);
 	sb_end_write(inode->i_sb);
+	PMFS_END_TIMING(xip_write_t, xip_write_time);
 	return ret;
 }
 

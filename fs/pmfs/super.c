@@ -34,6 +34,11 @@
 #include <linux/list.h>
 #include "pmfs.h"
 
+int measure_timing = 0;
+
+module_param(measure_timing, int, S_IRUGO);
+MODULE_PARM_DESC(measure_timing, "Timing measurement");
+
 static struct super_operations pmfs_sops;
 static const struct export_operations pmfs_export_ops;
 static struct kmem_cache *pmfs_inode_cachep;

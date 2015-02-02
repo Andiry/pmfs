@@ -103,6 +103,39 @@ extern unsigned int pmfs_dbgmask;
 extern unsigned int blk_type_to_shift[PMFS_BLOCK_TYPE_MAX];
 extern unsigned int blk_type_to_size[PMFS_BLOCK_TYPE_MAX];
 
+/* ======================= Timing ========================= */
+enum timing_category {
+	xip_read_t,
+	xip_write_t,
+	xip_write_fast_t,
+	memcpy_r_t,
+	memcpy_w_t,
+	logging_t,
+	TIMING_NUM,
+};
+
+extern const char *Timingstring[TIMING_NUM];
+extern u64 Timingstats[TIMING_NUM];
+extern u64 Countstats[TIMING_NUM];
+
+extern int measure_timing;
+
+typedef struct timespec timing_t;
+
+#define PMFS_START_TIMING(name, start) \
+	{if (measure_timing) getrawmonotonic(&start);}
+
+#define PMFS_END_TIMING(name, start) \
+	{if (measure_timing) { \
+		timing_t end; \
+		getrawmonotonic(&end); \
+		Timingstats[name] += \
+			(end.tv_sec - start.tv_sec) * 1e9 + \
+			(end.tv_nsec - start.tv_nsec); \
+	} \
+	Countstats[name]++; \
+	}
+
 /* Function Prototypes */
 extern void pmfs_error_mng(struct super_block *sb, const char *fmt, ...);
 
