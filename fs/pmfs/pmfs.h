@@ -670,4 +670,11 @@ struct pmfs_cache_info {
 
 int pmfs_cache_init(struct pmfs_sb_info *sbi, char* backing_dev_path);
 void pmfs_cache_exit(struct pmfs_sb_info *sbi);
+
+/* pmfs_stats.c */
+#define	PMFS_PRINT_TIMING	0xBCD00010
+#define	PMFS_CLEAR_STATS	0xBCD00011
+void pmfs_print_timing_stats(void);
+void pmfs_clear_stats(void);
+
 #endif /* __PMFS_H */

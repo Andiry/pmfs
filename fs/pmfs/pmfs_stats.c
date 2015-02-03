@@ -38,6 +38,7 @@ void pmfs_clear_stats(void)
 {
 	int i;
 
+	printk("======== Clear PMFS kernel timing stats ========\n");
 	for (i = 0; i < TIMING_NUM; i++) {
 		Countstats[i] = 0;
 		Timingstats[i] = 0;

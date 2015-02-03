@@ -132,6 +132,14 @@ setversion_out:
 		pmfs_fsync(filp, packet.offset, packet.offset + packet.length, 1);
 		return 0;
 	}
+	case PMFS_PRINT_TIMING: {
+		pmfs_print_timing_stats();
+		return 0;
+	}
+	case PMFS_CLEAR_STATS: {
+		pmfs_clear_stats();
+		return 0;
+	}
 	default:
 		return -ENOTTY;
 	}
